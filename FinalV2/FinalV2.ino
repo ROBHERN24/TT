@@ -9,7 +9,7 @@
 // Definición de constantes
 const int vel17 = 500;
 const int vel23 = 1000;
-const int velH = 500;
+const int velH = 750;
 const int incremento = 15;  // Incremento o decremento en grados
 const uint8_t celsius[] = {
   SEG_A | SEG_B | SEG_F | SEG_G,  // Circle
@@ -44,7 +44,12 @@ const byte PUL23 = 53;
 // Variables globales
 int movX = 0;
 int movY = 0;
-int pasos;
+int sec1 = 2;
+int sec2 = 2;
+int pasos17;
+int pasos23;
+int paso_actual_motor17 = 0; 
+int paso_actual_motor23 = 0; 
 int Cont = 2;
 int anguloActual =  0;
 int angulo = 45;  // Ángulo inicial del servo
@@ -72,10 +77,17 @@ void mostrarInformacion();
 void mostrarLCD();
 void mostrarTemperatura();
 void mostrarPresion();
-//void Caudal();
+void Caudal();
 void pulseCounter();
 void homeX();
 void homeY();
+void mover_motor17_mm(float milimetros);
+void mover_motor23_mm(float milimetros);
+
+uint32_t calcularPasos(float milimetros) {
+  const float pasos_por_mm = 200.0 / 8.0; // 200 pasos por 8 mm
+  return (uint32_t)(fabs(milimetros) * pasos_por_mm);
+}
 
 void setup() {
   Serial.begin(9600);
@@ -106,15 +118,15 @@ void setup() {
   pinMode(ledMM, OUTPUT);
   pinMode(homeSwitchXPin, INPUT_PULLUP);
   pinMode(homeSwitchYPin, INPUT_PULLUP);
-  //pinMode(PinCaudal, INPUT);
-  //digitalWrite(PinCaudal, HIGH);
-  //attachInterrupt(digitalPinToInterrupt(PinCaudal), pulseCounter, FALLING);
+  pinMode(PinCaudal, INPUT);
+  digitalWrite(PinCaudal, HIGH);
+  attachInterrupt(digitalPinToInterrupt(PinCaudal), pulseCounter, FALLING);
   servo1.write(90);
   servo2.write(90);
   servo3.write(45);
   servo4.write(0);
-  //homeX();
-  //homeY();
+  homeX();
+  homeY();
   delay(500);
 }
 
@@ -134,7 +146,8 @@ void loop() {
       // No se ha presionado ninguna tecla
       break;
     case '1':// Avance rápido a la zona 6 lowizq
-      // Implementar lógica
+      mover_motor17_mm(190);
+      mover_motor23_mm(35);
       break;
     case '2':// Bomba apagado
       anguloActual += paso;
@@ -146,22 +159,44 @@ void loop() {
       break;
     case '3':// Movimiento a la izquierda en eje 17
       if(digitalRead(homeSwitchXPin) == HIGH){
-        Serial.println(Cont % 2 == 0 ? "izq17" : "mmizq17");
-        girarMotor(DIR17, PUL17, HIGH, Cont % 2 == 0 ? 250 : 25, vel17);
+        if (Cont % 2 == 0) {
+        Serial.println("izq17");
+        girarMotor(DIR17, PUL17, HIGH, 250, vel17);
+        paso_actual_motor17 = paso_actual_motor17 - 250;
+      } else {
+        Serial.println("mmizq17");
+        girarMotor(DIR17, PUL17, HIGH, 25, vel17);
+        paso_actual_motor17 = paso_actual_motor17 - 25;
+        }
       }
       break;
     case '4':// Movimiento hacia abajo en eje 23
       if(digitalRead(homeSwitchYPin) == HIGH){
-        Serial.println(Cont % 2 == 0 ? "down23" : "mmdown23");
-        girarMotor(DIR23, PUL23, HIGH, Cont % 2 == 0 ? 250 : 25, vel23);
+        if (Cont % 2 == 0) {
+        Serial.println("down23");
+        girarMotor(DIR23, PUL23, HIGH, 250, vel23);
+        paso_actual_motor23 = paso_actual_motor23 - 250;
+      } else {
+        Serial.println("mmdown23");
+        girarMotor(DIR23, PUL23, HIGH, 25, vel23);
+        paso_actual_motor23 = paso_actual_motor23 - 250;
+        }
       }
       break;
     case '5':// Movimiento hacia arriba en eje 23
-      Serial.println(Cont % 2 == 0 ? "up23" : "mmup23");
-      girarMotor(DIR23, PUL23, LOW, Cont % 2 == 0 ? 250 : 25, vel23);
+      if (Cont % 2 == 0) {
+        Serial.println("up23");
+        girarMotor(DIR23, PUL23, LOW, 250, vel23);
+        paso_actual_motor23 = paso_actual_motor23 + 250;
+      } else {
+        Serial.println("mmup23");
+        girarMotor(DIR23, PUL23, LOW, 25, vel23);
+        paso_actual_motor23 = paso_actual_motor23 + 25;
+      }
       break;
     case '6':// Avance rápido a la zona 5 lowizq
-      // Implementar lógica
+      mover_motor17_mm(60);
+      mover_motor23_mm(35);
       break;
     case '7':// Bomba encendido
       anguloActual += paso;
@@ -189,14 +224,23 @@ void loop() {
       Serial.println("pos2-1");
       break;
     case 'A':// Movimiento a la derecha en eje 17
-      Serial.println(Cont % 2 == 0 ? "der17" : "mmder17");
-      girarMotor(DIR17, PUL17, LOW, Cont % 2 == 0 ? 250 : 25, vel17);
+    if (Cont % 2 == 0) {
+        Serial.println("der17");
+        girarMotor(DIR17, PUL17, LOW, 250, vel17);
+        paso_actual_motor17 = paso_actual_motor17 + 250;
+      } else {
+        Serial.println("mmder17");
+        girarMotor(DIR17, PUL17, LOW, 25, vel17);
+        paso_actual_motor17 = paso_actual_motor17 + 25;
+      }
       break;
     case 'B':// Avance rápido a la zona 3 midizq
-      // Implementar lógica
+      mover_motor17_mm(60);
+      mover_motor23_mm(100);
       break;
     case 'C':// Avance rápido a la zona 4 midder
-      // Implementar lógica
+      mover_motor17_mm(190);
+      mover_motor23_mm(100);
       break;
     case 'D':// Disminuir presión
       angulo -= incremento;  // Disminuimos el ángulo
@@ -219,13 +263,26 @@ void loop() {
       Cont++;
       break;
     case 'G':// Avance rápido a la zona 1 upizq
-      // Implementar lógica
+      mover_motor17_mm(60);
+      mover_motor23_mm(170);
       break;
     case 'H':// Avance rápido a la zona 2 upder 
-      // Implementar lógica
+      mover_motor17_mm(191);
+      mover_motor23_mm(170);
       break;
     case 'I':// Secuencia 2 
-      // Implementar lógica
+      while (sec2 % 2 == 0) {
+        mover_motor23_mm(170);
+        mover_motor17_mm(10);
+        mover_motor17_mm(190);
+        mover_motor23_mm(120);
+        mover_motor17_mm(10);
+        mover_motor23_mm(70);
+        mover_motor17_mm(190);
+        mover_motor17_mm(70);
+        mover_motor17_mm(10);
+        sec2++;
+      }
       break;
     case 'J':// Posición 1-2
       servo2.write(45);  // Enviamos el valor escalado al servo.
@@ -235,15 +292,16 @@ void loop() {
       servo1.write(135);  // Enviamos el valor escalado al servo.
       Serial.println("pos3-1");
       break;
-    /*case 'L':// Implementar lógica
-      Serial.println("L");
-      break;
-    case 'M':
-      // Implementar lógica
-      Serial.println("M");
-      break;*/
     case 'N':// Secuencia 1
-      // Implementar lógica
+      while (sec1 % 2 == 0) {
+        mover_motor17_mm(100);
+        mover_motor23_mm(175);
+        mover_motor17_mm(140);
+        mover_motor23_mm(20);
+        mover_motor17_mm(100);
+        mover_motor23_mm(175);
+        sec1++;
+      }
       break;
     case 'O'://pos1-1
       servo1.write(45);  // enviamos el valor escalado al servo.
@@ -263,7 +321,7 @@ void loop() {
 void homeX() {
   Serial.println("Homing eje X...");
   while (movX == 0) {
-    girarMotor(DIR17, PUL17, HIGH, 1, velH);
+    girarMotor(DIR17, PUL17, HIGH, 1, vel17);
     if(digitalRead(homeSwitchXPin) == LOW){
       delay(20);
       if(digitalRead(homeSwitchXPin) == LOW){
@@ -299,6 +357,48 @@ void girarMotor(byte dirPin, byte pulPin, bool direccion, int pasos, int velocid
   }
 }
 
+void mover_motor17_mm(float milimetros) {
+  if (milimetros < 0) {
+    milimetros = 0;
+  } else if (milimetros > 200) {
+    milimetros = 200;
+  }
+
+  uint32_t pasos = calcularPasos(milimetros);
+  int diferencia_pasos = pasos - paso_actual_motor17;
+
+  if (diferencia_pasos != 0) {
+    bool direccion = diferencia_pasos > 0 ? LOW : HIGH; // Retroceso = LOW, Avance = HIGH
+    if (diferencia_pasos < 0) {
+      diferencia_pasos = -diferencia_pasos; // Hacer positiva la diferencia para el bucle
+    }
+    girarMotor(DIR17, PUL17, direccion, diferencia_pasos, vel17);
+    paso_actual_motor17 = pasos;
+  }
+  delay(500); // Espera de 500 ms
+}
+
+void mover_motor23_mm(float milimetros) {
+  if (milimetros < 0) {
+    milimetros = 0;
+  } else if (milimetros > 200) {
+    milimetros = 200;
+  }
+
+  uint32_t pasos = calcularPasos(milimetros);
+  int diferencia_pasos = pasos - paso_actual_motor23;
+
+  if (diferencia_pasos != 0) {
+    bool direccion = diferencia_pasos > 0 ? LOW : HIGH; // Retroceso = LOW, Avance = HIGH
+    if (diferencia_pasos < 0) {
+      diferencia_pasos = -diferencia_pasos; // Hacer positiva la diferencia para el bucle
+    }
+    girarMotor(DIR23, PUL23, direccion, diferencia_pasos, vel23);
+    paso_actual_motor23 = pasos;
+  }
+  delay(500); // Espera de 500 ms
+}
+
 void mostrarInformacion() {
   mostrarLCD();
   mostrarTemperatura();
@@ -306,13 +406,15 @@ void mostrarInformacion() {
 }
 
 void mostrarLCD(){
+  int Dx_cm=distanciax(20); //lectura de distancia
+  int Dy_cm=distanciay(20);
   lcd.setCursor(0,0);
   lcd.print("X:");// Posición X
-  // lcd.print(Dx_cm);  // Aquí deberías mostrar la posición X actual
+  lcd.print(Dx_cm);  // Aquí deberías mostrar la posición X actual
   lcd.print("cm ");
   lcd.setCursor(8,0);
   lcd.print("Y:");// Posición Y
-  // lcd.print(Dy_cm);  // Aquí deberías mostrar la posición Y actual
+  lcd.print(Dy_cm);  // Aquí deberías mostrar la posición Y actual
   lcd.print("cm ");
   lcd.setCursor(0,1);
   lcd.print("W:");
@@ -324,12 +426,35 @@ void mostrarLCD(){
   lcd.print("\337");
 }
 
+float distanciax(int n)
+{
+  long suma1=0;
+  for(int i=0;i<n;i++)
+  {
+    suma1=suma1+analogRead(A0);
+  }  
+  float adc1=suma1/n;
+  float distanciax_cm = 17569.7 * pow(adc1, -1.2062);
+  return(distanciax_cm);
+}
+float distanciay(int n)
+{
+  long suma2=0;
+  for(int i=0;i<n;i++)
+  {
+    suma2=suma2+analogRead(A1);
+  }  
+  float adc2=suma2/n;
+  float distanciay_cm = 17569.7 * pow(adc2, -1.2062);
+  return(distanciay_cm);
+}
+
 void mostrarTemperatura() {
   float temp = thermocouple.readCelsius();
   displayTemp.showNumberDec(temp, false, 2, 0);
   displayTemp.setSegments(celsius, 2, 2);
 }
-/*
+
 void Caudal() {
   unsigned long currentTime = millis();
   unsigned long elapsedTime = currentTime - oldTime;
@@ -340,13 +465,12 @@ void Caudal() {
     oldTime = currentTime;  // Actualizar el tiempo anterior
     attachInterrupt(digitalPinToInterrupt(PinCaudal), pulseCounter, FALLING);  // Reactivar interrupción
   }
-}*/
+}
 
 void mostrarPresion() {
   displayPres.showNumberDec(flowRate, false, 4, 0);
 }
-/*
+
 void pulseCounter() {
   pulseCount++;
 }
-*/
